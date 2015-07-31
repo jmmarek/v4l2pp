@@ -1,12 +1,31 @@
-#ifndef _CAMERA_H_
-#define _CAMERA_H_
+/**
+@file v4l2_camera.cpp
+*/
+#ifndef _V4L2_CAMERA_H_
+#define _V4L2_CAMERA_H_
+
+/*! \mainpage
+ * <b>This is a C++ wrapper for well known library Video4Linux2.</b>\n
+ * It allows to get image from camera easily as shown in the following example:\n
+ * \code	{.cpp}
+ * V4L2::Camera camera(640, 480);
+ * // Select device
+ * camera.setDevice("/dev/video0");
+ * // Open device
+ * camera.open();
+ * // Start capturing
+ * camera.startCapturing();
+ * // While capturing it is possible to get image
+ * unsigned char *image = camera.getImage();
+ * // Release resources before exit
+ * camera.stopCapturing();
+ * camera.close();
+ * \endcode
+ */
 
 #include <utility>
-#include <string.h>
 #include <fcntl.h>
-#include <errno.h>
 #include <sys/ioctl.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/mman.h>
@@ -19,6 +38,9 @@
 #define CAMERA_ASYNC_CONTINUE 0
 #define CAMERA_ASYNC_STOP -1
 
+/**
+ * The namespace of the wrapper.
+ */
 namespace V4L2 {
     /**
      * This class maganes camera using V4L2 API. Using this class you can easily get Image and manipulate parameters.
@@ -41,7 +63,7 @@ namespace V4L2 {
              * @return numer > 0 to get image for nubers of second
 
              */
-            typedef int (*sync_callback)(char* bytes);
+            typedef int (*sync_callback)(unsigned char* bytes);
 
             /**
              * Constructor without parameters. It means that before using camera, you have to set the parameters manually or it will use default size 640x480.
@@ -52,10 +74,13 @@ namespace V4L2 {
 
             /**
              * Constructor with parameters describing camera size.
+             * @param width width in pixels.
+             * @param height height in pixels.
+             * @param pix_format format of the output image.
              * @see setSettings()
              * @see setDevice()
              */
-            Camera(int x, int y, int pix_format = V4L2_PIX_FMT_RGB24);
+            Camera(int width, int height, int pix_format = V4L2_PIX_FMT_RGB24);
 
             /**
              * Destructor of Camera class. It closes device and frees memory automatic.
@@ -71,12 +96,12 @@ namespace V4L2 {
              * \post you mustn't free returned pointer
              * @returns NULL on any issue
              */
-            char* getImage();
+            unsigned char* getImage();
 
             /**
              * Receive images synchronously, as long as callback returns CAMERA_ASYNC_CONTINUE. It calls callback, given as parameter.
              * When camera is not opened, it calls open()
-             * @param sync_callback calback or lambda expression to call
+             * @param callback calback or lambda expression to call
              * @return CAMERA_BAD_STATE
              * @return CAMERA_SUCCESS
              * \pre open() has to be called
@@ -84,7 +109,7 @@ namespace V4L2 {
              * @see sync_callback()
              * @see open()
              */
-            int getImagesSynchronously(sync_callback);
+            int getImagesSynchronously(sync_callback callback);
 
 
             /**
@@ -165,7 +190,7 @@ namespace V4L2 {
              * To let device change, you have to call open()
              * @see open()
              */
-            void setDevice(const char *device);
+            void setDevice(std::string device);
 
             /**
              * Changes settings using v4l2 structures.
@@ -187,6 +212,17 @@ namespace V4L2 {
              *      return CAMERA_WRONG_PIXELFORMAT;
              * }
              * \endcode
+             *
+             * \code	{.cpp}
+             * // Disable auto focus
+             * struct v4l2_control control;
+             * control.id = V4L2_CID_FOCUS_AUTO;
+             * control.value = false;
+             * ret = camera.setSettings(VIDIOC_S_CTRL, &control);
+             * if (ret != CAMERA_SUCCESS) // Handle error
+             * \endcode
+             *
+             * @pre open()
              */
             int setSettings(int request, void* structure);
 
@@ -198,6 +234,9 @@ namespace V4L2 {
                 CONTINOUS
             } state;
 
+            std::pair<int,int> camera_size;
+            
+            // Variables needed by V4L2
             struct v4l2_format              fmt;
             struct v4l2_buffer              buf;
             struct v4l2_requestbuffers      req;
@@ -206,10 +245,8 @@ namespace V4L2 {
             int                             fd = -1;
             int                             pix_fmt;
             unsigned int                    n_buffers;
-            char                            dev_name[13];
+            std::string                     dev_name;
             bool stop_flag;
-
-            std::pair<int,int> camera_size;
 
             struct buffer {
                 void   *start;
@@ -217,7 +254,7 @@ namespace V4L2 {
             } *buffers;
 
             /**
-             * initialize and deinitialize buffer using mmap
+             * Initialize and deinitialize buffer using mmap
              */
             int prepare();
             int unprepare();
@@ -230,16 +267,18 @@ namespace V4L2 {
             int xioctl(int fh, int request, void *arg);
     };
 
-    ///Errors enum
+    /**
+     * Errors enumeration
+     */
     enum {
-        CAMERA_SUCCESS = 0,
-        CAMERA_BAD_STATE,
-        CAMERA_CANNOT_OPEN,
-        CAMERA_WRONG_PIXELFORMAT,
-        CAMERA_ERROR,
-        CAMERA_DIFFERENT_SIZE///<Changed size to not the given one. Get current size using getSize()
+        CAMERA_SUCCESS = 0,///<Function succeeded.
+        CAMERA_BAD_STATE,///<Bad order of the current call. The correct order is described in V4L2::Camera reference.
+        CAMERA_CANNOT_OPEN,///<Can't open device. Probably it doesn't exist or it is busy now.
+        CAMERA_WRONG_PIXELFORMAT,///<Set pixelformat wasn't accepted.
+        CAMERA_ERROR,///<Unknown error.
+        CAMERA_DIFFERENT_SIZE///<Changed size to not the given one. Get current size using getSize().
     };
     std::mutex mutex;
 }
 
-#endif // _CAMERA_H_
+#endif // _V4L2_CAMERA_H_

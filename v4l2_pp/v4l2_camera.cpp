@@ -1,6 +1,6 @@
 #include "v4l2_camera.h"
 
-#define CLEAR(x) memset(&(x), 0, sizeof(x))
+#define CLEAR(x) std::fill(x, sizeof(x))
 
 using namespace V4L2;
 
@@ -10,14 +10,14 @@ Camera::Camera(){
     pix_fmt = V4L2_PIX_FMT_RGB24;
 }
 
-Camera::Camera(int x, int y, int pix_format){
+Camera::Camera(int width, int height, int pix_format){
     state = CLOSED;
-    camera_size = std::pair<int, int>(x, y);
+    camera_size = std::pair<int, int>(width, height);
     this->pix_fmt = pix_format;
 }
 
-void Camera::setDevice(const char *device){
-    strcpy(dev_name, device);
+void Camera::setDevice(std::string device){
+    dev_name = device;
 }
 
 void Camera::getSize(int *width, int *height)
@@ -31,7 +31,7 @@ int Camera::setSize(int width, int height)
     if(state != STOPPED)
         return CAMERA_BAD_STATE;
 
-    CLEAR(fmt);
+//    CLEAR(fmt);
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width       = width;
     fmt.fmt.pix.height      = height;
@@ -67,7 +67,7 @@ int Camera::open(){
     if(state != CLOSED)
         return CAMERA_BAD_STATE;
 
-    fd = v4l2_open(dev_name, O_RDWR | O_NONBLOCK, 0);
+    fd = v4l2_open(dev_name.c_str(), O_RDWR | O_NONBLOCK, 0);
     if (fd < 0){
         v4l2_close(fd);
         state = CLOSED;
@@ -91,7 +91,7 @@ int Camera::unprepare(){
 }
 
 int Camera::prepare(){
-    CLEAR(req);
+    //CLEAR(req);
     req.count = 4;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
@@ -100,7 +100,7 @@ int Camera::prepare(){
     buffers = (buffer*) calloc(req.count, sizeof(*buffers));
     for (n_buffers = 0; n_buffers < req.count; ++n_buffers) {
         struct v4l2_buffer buf;
-        CLEAR(buf);
+        //CLEAR(buf);
 
         buf.type        = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory      = V4L2_MEMORY_MMAP;
@@ -131,7 +131,7 @@ int Camera::startCapturing()
 
     for (unsigned int i = 0; i < n_buffers; ++i) {
         struct v4l2_buffer buf;
-        CLEAR(buf);
+       // CLEAR(buf);
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
         buf.index = i;
@@ -153,7 +153,7 @@ Camera::~Camera(){
     close();
 }
 
-int Camera::getImagesSynchronously(sync_callback callback_)
+int Camera::getImagesSynchronously(sync_callback callback)
 {
     mutex.lock();
     if(state != STARTED)
@@ -161,32 +161,15 @@ int Camera::getImagesSynchronously(sync_callback callback_)
     state = CONTINOUS;
     mutex.unlock();
     int run = CAMERA_ASYNC_CONTINUE;
-    fd_set fds;
     while (run != CAMERA_ASYNC_STOP) {
-        int r = -1;
-        /*do {
-            FD_ZERO(&fds);
-            FD_SET(fd, &fds);
-
-            /* Timeout. * /
-            tv.tv_sec = 2;
-            tv.tv_usec = 0;
-
-            r = select(fd + 1, &fds, NULL, NULL, &tv);
-        } while ((r == -1 && (errno = EINTR)));
-        if (r == -1) {
-            perror("select");
-            continue ;
-        }*/
-
-        CLEAR(buf);
+        //CLEAR(buf);
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
         xioctl(fd, VIDIOC_DQBUF, &buf);
 
         if(stop_flag)
             break;
-        run = callback_((char*)buffers[buf.index].start);
+        run = callback((unsigned char*)buffers[buf.index].start);
 
         xioctl(fd, VIDIOC_QBUF, &buf);
     }
@@ -246,7 +229,7 @@ int Camera::close()
     return CAMERA_SUCCESS;
 }
 
-char * Camera::getImage(){
+unsigned char *Camera::getImage(){
     if(state != STARTED)
         return NULL;
     state = CONTINOUS;
@@ -268,11 +251,11 @@ char * Camera::getImage(){
         return NULL;
     }
 
-    CLEAR(buf);
+    //CLEAR(buf);
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
     xioctl(fd, VIDIOC_DQBUF, &buf);
-    char * buffers_ = (char*)buffers[buf.index].start;
+    unsigned char *buffers_ = (unsigned char*)buffers[buf.index].start;
     xioctl(fd, VIDIOC_QBUF, &buf);
     state = STARTED;
     return buffers_;
@@ -286,7 +269,7 @@ int Camera::xioctl(int fh, int request, void *arg)
     } while (r == -1 && ((errno == EINTR) || (errno == EAGAIN)));
 
     if (r == -1) {
-        fprintf(stderr, "error %d, %s\n", errno, strerror(errno));
+        throw std::string("Error " + errno);
         return 1;
     }
     return 0;
