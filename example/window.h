@@ -20,7 +20,7 @@ class Window: public Gtk::Window
          *
          * \param image the image to show
          */
-        void getNewImage(char* image2);
+        void getNewImage(unsigned char *image2);
     private:
         callback continous, stop, once;
         path_callback change_camera;

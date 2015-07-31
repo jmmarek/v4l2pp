@@ -6,8 +6,8 @@ CC = g++
 
 CPPFLAGS = -std=c++11 -g -Wall
 
-all: main.c $(FILES)
-	g++ $(FILES) main.cpp -o pr $(CPPFLAGS)  -L. ../v4l2_pp/libv4l2_camera.so.1 -lpthread $(LGTKMM)
+all: main.cpp $(FILES)
+	g++ $(FILES) main.cpp -o v4l2_example $(CPPFLAGS)  -L. ../v4l2_pp/libv4l2_camera.so.1 -lpthread $(LGTKMM)
 
 %.o : %.cpp
 	$(CC) -c $(CPPFLAGS) $(LGTKMM) $< -o $@ 

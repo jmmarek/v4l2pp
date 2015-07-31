@@ -35,7 +35,7 @@ void stop(){
 }
 
 void get_one(){
-    char *imag = camera.getImage();
+    unsigned char *imag = camera.getImage();
     if(imag != NULL)
         window->getNewImage(imag);
 }
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 
         //Example 1
         //Get single image
-        char *imag = camera.getImage();
+        unsigned char *imag = camera.getImage();
         //Put image into window
         window->getNewImage(imag);
 
@@ -117,7 +117,7 @@ int main(int argc, char **argv)
         while(run_loop){
             if(allow_frame != CAMERA_ASYNC_STOP){
                camera.getImagesSynchronously(
-                    [&](char *imag){
+                    [&](unsigned char *imag){
                         if(allow_frame == CAMERA_ASYNC_STOP)//This code shouldn't have been needed. To fix
                             return CAMERA_ASYNC_STOP;
 

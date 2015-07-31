@@ -74,7 +74,7 @@ Window::~Window(){
     delete interactive_image;
 }
 
-void Window::getNewImage(char* image2){
+void Window::getNewImage(unsigned char* image2){
     if(!image.init)
         throw std::string("Set image parameters first");
 
