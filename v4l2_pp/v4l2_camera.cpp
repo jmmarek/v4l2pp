@@ -1,7 +1,5 @@
 #include "v4l2_camera.h"
 
-#define CLEAR(x) std::fill(x, sizeof(x))
-
 using namespace V4L2;
 
 Camera::Camera(){
@@ -16,7 +14,7 @@ Camera::Camera(int width, int height, int pix_format){
     this->pix_fmt = pix_format;
 }
 
-void Camera::setDevice(std::string device){
+void Camera::setDevice(std::string const& device){
     dev_name = device;
 }
 
@@ -31,7 +29,6 @@ int Camera::setSize(int width, int height)
     if(state != STOPPED)
         return CAMERA_BAD_STATE;
 
-//    CLEAR(fmt);
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width       = width;
     fmt.fmt.pix.height      = height;
@@ -91,7 +88,6 @@ int Camera::unprepare(){
 }
 
 int Camera::prepare(){
-    //CLEAR(req);
     req.count = 4;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
@@ -100,7 +96,6 @@ int Camera::prepare(){
     buffers = (buffer*) calloc(req.count, sizeof(*buffers));
     for (n_buffers = 0; n_buffers < req.count; ++n_buffers) {
         struct v4l2_buffer buf;
-        //CLEAR(buf);
 
         buf.type        = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory      = V4L2_MEMORY_MMAP;
@@ -131,7 +126,6 @@ int Camera::startCapturing()
 
     for (unsigned int i = 0; i < n_buffers; ++i) {
         struct v4l2_buffer buf;
-       // CLEAR(buf);
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
         buf.index = i;
@@ -153,16 +147,15 @@ Camera::~Camera(){
     close();
 }
 
-int Camera::getImagesSynchronously(sync_callback callback)
+int Camera::getImagesContinuously(sync_callback callback)
 {
     mutex.lock();
     if(state != STARTED)
         return CAMERA_BAD_STATE;
     state = CONTINOUS;
     mutex.unlock();
-    int run = CAMERA_ASYNC_CONTINUE;
-    while (run != CAMERA_ASYNC_STOP) {
-        //CLEAR(buf);
+    ContinousControl run = ContinousControl::CONTINUE;
+    while (run != ContinousControl::STOP) {
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
         xioctl(fd, VIDIOC_DQBUF, &buf);
@@ -251,7 +244,6 @@ unsigned char *Camera::getImage(){
         return NULL;
     }
 
-    //CLEAR(buf);
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
     xioctl(fd, VIDIOC_DQBUF, &buf);

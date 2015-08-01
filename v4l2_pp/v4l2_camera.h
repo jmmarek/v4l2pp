@@ -7,7 +7,7 @@
 /*! \mainpage
  * <b>This is a C++ wrapper for well known library Video4Linux2.</b>\n
  * It allows to get image from camera easily as shown in the following example:\n
- * \code	{.cpp}
+ * \code    {.cpp}
  * V4L2::Camera camera(640, 480);
  * // Select device
  * camera.setDevice("/dev/video0");
@@ -23,25 +23,38 @@
  * \endcode
  */
 
-#include <utility>
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
 #include "/usr/include/libv4l2.h"
 #include <thread>
 #include <mutex>
 
-#define CAMERA_NOT_STARTED 1
-#define CAMERA_ASYNC_CONTINUE 0
-#define CAMERA_ASYNC_STOP -1
-
 /**
  * The namespace of the wrapper.
  */
 namespace V4L2 {
+
+    /**
+     * Errors enumeration
+     */
+    enum {
+        CAMERA_SUCCESS = 0,///<Function succeeded.
+        CAMERA_BAD_STATE,///<Bad order of the current call. The correct order is described in V4L2::Camera reference.
+        CAMERA_CANNOT_OPEN,///<Can't open device. Probably it doesn't exist or it is busy now.
+        CAMERA_WRONG_PIXELFORMAT,///<Set pixelformat wasn't accepted.
+        CAMERA_ERROR,///<Unknown error.
+        CAMERA_DIFFERENT_SIZE///<Changed size to not the given one. Get current size using getSize().
+    };
+
+    /**
+     * Return values of the callback
+     */
+    typedef enum {
+        CONTINUE,///<Continue getting images
+        STOP///<Stop getting images
+    } ContinousControl;
+
     /**
      * This class maganes camera using V4L2 API. Using this class you can easily get Image and manipulate parameters.
      */
@@ -51,7 +64,7 @@ namespace V4L2 {
             /**
              * Callback (it may be lambda expression too. to call when using synchronous option.
              * @param bytes table of char in format specified in v4l2 documentation.
-             * \code	{.cpp}
+             * \code    {.cpp}
              * //Example of lambda
              * [&](char *imag){
              *     //here receive image
@@ -63,7 +76,7 @@ namespace V4L2 {
              * @return numer > 0 to get image for nubers of second
 
              */
-            typedef int (*sync_callback)(unsigned char* bytes);
+            typedef ContinousControl (*sync_callback)(unsigned char* bytes);
 
             /**
              * Constructor without parameters. It means that before using camera, you have to set the parameters manually or it will use default size 640x480.
@@ -109,7 +122,7 @@ namespace V4L2 {
              * @see sync_callback()
              * @see open()
              */
-            int getImagesSynchronously(sync_callback callback);
+            int getImagesContinuously(sync_callback callback);
 
 
             /**
@@ -190,14 +203,14 @@ namespace V4L2 {
              * To let device change, you have to call open()
              * @see open()
              */
-            void setDevice(std::string device);
+            void setDevice(std::string const& device);
 
             /**
              * Changes settings using v4l2 structures.
              * Availble structures:
              * @param request integer instruction (i.e. VIDEOC_S_CTRL etc.)
              * @param structure a v4l2 structure (i.e. v4l2_format, v4l2_buffer, v4l2_requestbuffers)
-             * \code	{.cpp}
+             * \code    {.cpp}
              * V4L2::Camera camera;
              * ...
              * struct v4l2_format fmt;
@@ -213,7 +226,7 @@ namespace V4L2 {
              * }
              * \endcode
              *
-             * \code	{.cpp}
+             * \code    {.cpp}
              * // Disable auto focus
              * struct v4l2_control control;
              * control.id = V4L2_CID_FOCUS_AUTO;
@@ -235,7 +248,7 @@ namespace V4L2 {
             } state;
 
             std::pair<int,int> camera_size;
-            
+
             // Variables needed by V4L2
             struct v4l2_format              fmt;
             struct v4l2_buffer              buf;
@@ -265,20 +278,9 @@ namespace V4L2 {
              * @return 0 on success
              */
             int xioctl(int fh, int request, void *arg);
-    };
 
-    /**
-     * Errors enumeration
-     */
-    enum {
-        CAMERA_SUCCESS = 0,///<Function succeeded.
-        CAMERA_BAD_STATE,///<Bad order of the current call. The correct order is described in V4L2::Camera reference.
-        CAMERA_CANNOT_OPEN,///<Can't open device. Probably it doesn't exist or it is busy now.
-        CAMERA_WRONG_PIXELFORMAT,///<Set pixelformat wasn't accepted.
-        CAMERA_ERROR,///<Unknown error.
-        CAMERA_DIFFERENT_SIZE///<Changed size to not the given one. Get current size using getSize().
+            std::mutex mutex;
     };
-    std::mutex mutex;
 }
 
 #endif // _V4L2_CAMERA_H_

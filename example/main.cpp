@@ -11,7 +11,7 @@ using namespace std;
 
 V4L2::Camera camera;
 
-int allow_frame = CAMERA_ASYNC_CONTINUE;
+V4L2::ContinousControl allow_frame = V4L2::ContinousControl::CONTINUE;
 Window *window;
 
 /**
@@ -27,11 +27,11 @@ void setImageToCamera(V4L2::Camera *camera)
 }
 
 void continous(){
-    allow_frame = CAMERA_ASYNC_CONTINUE;
+    allow_frame = V4L2::ContinousControl::CONTINUE;
 }
 
 void stop(){
-    allow_frame = CAMERA_ASYNC_STOP;
+    allow_frame = V4L2::ContinousControl::STOP;
 }
 
 void get_one(){
@@ -41,7 +41,7 @@ void get_one(){
 }
 
 void change_camera(const char *path){
-    allow_frame = CAMERA_ASYNC_STOP;
+    allow_frame = V4L2::ContinousControl::STOP;
     std::this_thread::sleep_for (std::chrono::milliseconds(200));
     int ret = camera.stopCapturing();
     if(ret != 0)
@@ -59,7 +59,7 @@ void change_camera(const char *path){
         return;
 
     camera.startCapturing();
-    allow_frame = CAMERA_ASYNC_CONTINUE;
+    allow_frame = V4L2::ContinousControl::CONTINUE;
 }
 
 int main(int argc, char **argv)
@@ -115,11 +115,11 @@ int main(int argc, char **argv)
         //Example 2:
         //Receive images asynchronously, passing lambda
         while(run_loop){
-            if(allow_frame != CAMERA_ASYNC_STOP){
-               camera.getImagesSynchronously(
+            if(allow_frame != V4L2::ContinousControl::STOP){
+               camera.getImagesContinuously(
                     [&](unsigned char *imag){
-                        if(allow_frame == CAMERA_ASYNC_STOP)//This code shouldn't have been needed. To fix
-                            return CAMERA_ASYNC_STOP;
+                        if(allow_frame == V4L2::ContinousControl::STOP)//This code shouldn't have been needed. To fix
+                            return V4L2::ContinousControl::STOP;
 
                         if(imag != NULL)
                             window->getNewImage(imag);
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
     kit.run(*window);
 
     //Stop receiving images from camera
-    allow_frame = CAMERA_ASYNC_STOP;
+    allow_frame = V4L2::ContinousControl::STOP;
     run_loop = false;
     t1.join();
     camera.close();
